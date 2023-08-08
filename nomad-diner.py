@@ -1,10 +1,15 @@
+#!/usr/bin/env python3
+
 import argparse
 import json
 import math
+import os
 import re
 import requests
 
-API_KEY = 'YOUR_GOOGLE_MAPS_API_KEY'
+API_KEY = os.environ.get('GOOGLE_MAPS_API_KEY')
+if not API_KEY:
+    raise ValueError("Please set the environment variable GOOGLE_MAPS_API_KEY with your Google Maps API key.")
 
 def get_location_coordinates(location):
     """
@@ -118,9 +123,10 @@ def get_nearby_restaurants(location, distance, min_rating=None, max_price=None, 
 
         destination_lat, destination_lng = result['geometry']['location']['lat'], result['geometry']['location']['lng']
         straight_distance = haversine_distance((lat, lng), (destination_lat, destination_lng))
+        rounded_distance = round(straight_distance / 10) * 10
 
         driving_eta = None
-        if get_eta and straight_distance > eta_threshold:
+        if get_eta and (not eta_threshold or straight_distance > eta_threshold):
             driving_eta = get_driving_eta((lat, lng), (destination_lat, destination_lng))
 
         restaurant = {
@@ -133,7 +139,7 @@ def get_nearby_restaurants(location, distance, min_rating=None, max_price=None, 
             'Website': details.get('website', "N/A"),
             'Summary': details.get('editorial_summary', "N/A"),
             'Driving ETA': driving_eta,
-            'As the bird flies': straight_distance
+            'Haversine Distance': rounded_distance
         }
         restaurant_details.append(restaurant)
 
@@ -193,11 +199,7 @@ def main():
         eta_threshold=args.eta_threshold
         )
 
-    for restaurant in restaurants:
-        print("-" * 50)
-        for key, value in restaurant.items():
-            print(f"{key}: {value}")
-        print("-" * 50)
+    print(json.dumps(restaurants, indent=4))
 
 
 if __name__ == '__main__':

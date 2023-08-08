@@ -21,7 +21,7 @@ Deciding where to eat during travels can be a hassle. This script uses Google's 
 - Python 3.6+
 - requests (>=2.0)
 
-## Installation
+## Setup
 
 1. Clone this repository:
 
@@ -35,17 +35,42 @@ git clone https://github.com/jludwig/nomad-diner.git
 pip install -r requirements.txt
 ```
 
-**Note:** Remember to replace `YOUR_GOOGLE_MAPS_API_KEY` in the script with your actual API key. And, don't forget to set up quotas on your API calls to avoid potential surprises.
+
+3. Configure your Google Maps API Key:
+
+Set your API key as an environment variable:
+
+```
+export GOOGLE_MAPS_API_KEY='YOUR_API_KEY'
+```
+
+🚨 Important: Ensure you've replaced YOUR_API_KEY with your actual Google Maps API key.
 
 ## Usage
+
+Use the following syntax:
+
+```
+python nomad-diner.py [location] [options]
+```
+
+Example:
+
+To find restaurants within 5km of Tokyo that have a minimum rating of 4.5 and are medium-priced:
 
 ```
 python nomad-diner.py "Tokyo" --distance 5000 --min-rating 4.5 --max-price 2
 ```
 
-Finds restaurants within 5km of Tokyo with at least a 4.5 rating and medium price.
+### Additional Tips
 
-Refer to the script's help (`-h` option) for detailed usage instructions.
+- Use the -h option for a comprehensive list of available command-line options and further usage instructions:
+
+```
+python nomad-diner.py -h
+```
+
+- Rate Limits and Quotas: Always set up quotas for your API key in the Google Cloud Console to avoid unexpected charges.
 
 ## Versatility:
 
