@@ -6,6 +6,7 @@ import math
 import os
 import re
 import requests
+import time
 
 API_KEY = os.environ.get('GOOGLE_MAPS_API_KEY')
 if not API_KEY:
@@ -69,7 +70,7 @@ def haversine_distance(coord1, coord2):
     return R * c
 
 
-def get_nearby_restaurants(location, distance, min_rating=None, max_price=None, search=None, max_results=25, get_eta=False, eta_threshold=0):
+def get_nearby_restaurants(location, distance, min_rating=None, max_price=None, search=None, max_pages=3, get_eta=False, eta_threshold=0):
     """
     Fetches nearby restaurants based on the provided criteria.
 
@@ -78,7 +79,7 @@ def get_nearby_restaurants(location, distance, min_rating=None, max_price=None, 
     :param min_rating: Filter by minimum rating (optional)
     :param max_price: Filter by maximum price level (optional)
     :param search: Keyword to search for in restaurant names or descriptions (optional)
-    :param max_results: Maximum number of results to return (default is 25)
+    :param max_pages: Maximum number of result pages to return (default is 3, Google's max)
     :param get_eta: Boolean indicating whether to get ETA by car (default is False)
     :param eta_threshold: Threshold in meters beyond which to get the ETA (default is 0)
     :return: List of dictionaries containing restaurant details
@@ -95,18 +96,33 @@ def get_nearby_restaurants(location, distance, min_rating=None, max_price=None, 
         'type': 'restaurant',
         'key': API_KEY
     }
+    max_pages = max(1, min(max_pages, 3))
     if search:
         params['keyword'] = search
 
-    res = requests.get(endpoint, params=params).json()
-    if res['status'] != 'OK':
-        return []
+    restaurant_results = []
+    page_count = 0
+    while page_count < max_pages:
+        if page_count > 0:
+            if 'next_page_token' not in res:
+                break
+            params['pagetoken'] = res['next_page_token']
+
+            # Respect the Google-recommended delay between page requests.
+            time.sleep(2)
+
+        res = requests.get(endpoint, params=params).json()
+        if res['status'] != 'OK':
+            break
+
+        restaurant_results.extend(res['results'])
+        if len(restaurant_results) >= 60:
+            break
+
+        page_count += 1
 
     restaurant_details = []
     for result in res['results']:
-        if len(restaurant_details) == max_results:
-            break
-
         details_endpoint = "https://maps.googleapis.com/maps/api/place/details/json"
         details_params = {
             'place_id': result['place_id'],
@@ -179,12 +195,12 @@ def main():
     parser = argparse.ArgumentParser(description='Get nearby restaurants based on location.')
     parser.add_argument('location', type=str, help='A location name, address, or coordinates.')
     parser.add_argument('--distance', type=int, default=20000, help='Search radius in meters.')
-    parser.add_argument('--get-eta', action='store_true', help='Get ETA by car to the location.')
-    parser.add_argument('--eta-threshold', type=int, help='Only get ETA for locations over this distance in meters.')
     parser.add_argument('--min-rating', type=float, help='Filter results by a minimum rating.')
     parser.add_argument('--max-price', type=int, help='Filter results by a maximum price level. 1 is cheapest and 4 is most expensive.')
     parser.add_argument('--search', type=str, help='Search keyword to filter results by restaurant names or descriptions.')
-    parser.add_argument('--max-results', type=int, default=25, help='Maximum number of results to return.')
+    parser.add_argument('--max-pages', type=int, default=3, help="Number of result pages (up to 20 results each). Maximum allowed by Google is 3 pages.")
+    parser.add_argument('--get-eta', action='store_true', help='Get ETA by car to the location.')
+    parser.add_argument('--eta-threshold', type=int, help='Only get ETA for locations over this distance in meters.')
 
     args = parser.parse_args()
 
@@ -194,7 +210,7 @@ def main():
         min_rating=args.min_rating,
         max_price=args.max_price,
         search=args.search,
-        max_results=args.max_results,
+        max_pages=args.max_pages,
         get_eta=args.get_eta,
         eta_threshold=args.eta_threshold
         )
